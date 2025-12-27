@@ -1,0 +1,136 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:gif="using:Avalonia.Labs.Gif"
+             xmlns:local="using:DaCardsAV"
+             mc:Ignorable="d" d:DesignWidth="400" d:DesignHeight="700"
+             x:Class="DaCardsAV.MainView"
+             Background="#008f00">
+
+    <Grid RowDefinitions="Auto,*">
+        <!-- Game Toolbar (hidden on menu) -->
+        <Border x:Name="GameToolbar"
+                Grid.Row="0"
+                IsVisible="False"
+                Background="#006600"
+                Padding="8">
+            <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto">
+                <Button x:Name="BackButton"
+                        Grid.Column="0"
+                        Content="Menu"
+                        Click="OnBackToMenu"
+                        Padding="12,8"
+                        Margin="0,0,8,0" />
+
+                <TextBlock x:Name="GameTitle"
+                           Grid.Column="1"
+                           Text="Game"
+                           Foreground="White"
+                           FontSize="18"
+                           FontWeight="Bold"
+                           VerticalAlignment="Center"
+                           HorizontalAlignment="Center" />
+
+                <Button x:Name="NewGameButton"
+                        Grid.Column="2"
+                        Content="New"
+                        Click="OnNewGame"
+                        Padding="12,8"
+                        Margin="0,0,4,0" />
+
+                <Button x:Name="UndoButton"
+                        Grid.Column="3"
+                        Content="Undo"
+                        Click="OnUndo"
+                        Padding="12,8"
+                        Margin="0,0,4,0" />
+
+                <Button x:Name="RedoButton"
+                        Grid.Column="4"
+                        Content="Redo"
+                        Click="OnRedo"
+                        Padding="12,8" />
+            </Grid>
+        </Border>
+
+        <!-- Content Area -->
+        <ContentControl x:Name="ContentArea" Grid.Row="1">
+            <!-- Main Menu (default view) -->
+            <Grid x:Name="MainMenu" RowDefinitions="*,Auto,Auto">
+                <Viewbox Grid.Row="0" Stretch="Uniform" StretchDirection="Both">
+                    <gif:GifImage Width="818" Height="600" Source="avares://DaCardsAV/Assets/misc/animation_startup.gif"
+                                  HorizontalAlignment="Center"
+                                  VerticalAlignment="Center"
+                                  Stretch="None" />
+                </Viewbox>
+
+                <TextBlock Text="DaCards"
+                          Grid.Row="1"
+                          Foreground="White"
+                          FontSize="32"
+                          FontWeight="Bold"
+                          HorizontalAlignment="Center" />
+
+                <!-- Game Selection Buttons -->
+                <StackPanel Grid.Row="2"
+                            Spacing="12"
+                            HorizontalAlignment="Center"
+                            Margin="20">
+
+                    <!-- Solitaire Section -->
+                    <TextBlock Text="Solitaire"
+                               Foreground="White"
+                               FontSize="16"
+                               FontWeight="Bold"
+                               HorizontalAlignment="Center" />
+                    <StackPanel Orientation="Horizontal"
+                                Spacing="8"
+                                HorizontalAlignment="Center">
+                        <Button Content="Draw 1"
+                                Click="OnSolitaireDrawOne"
+                                Padding="20,12"
+                                FontSize="14" />
+                        <Button Content="Draw 3"
+                                Click="OnSolitaireDrawThree"
+                                Padding="20,12"
+                                FontSize="14" />
+                    </StackPanel>
+
+                    <!-- FreeCell -->
+                    <Button Content="FreeCell"
+                            Click="OnFreeCell"
+                            Padding="40,12"
+                            FontSize="14"
+                            HorizontalAlignment="Center"
+                            Margin="0,12,0,0" />
+
+                    <!-- Spider Section -->
+                    <TextBlock Text="Spider Solitaire"
+                               Foreground="White"
+                               FontSize="16"
+                               FontWeight="Bold"
+                               HorizontalAlignment="Center"
+                               Margin="0,12,0,0" />
+                    <StackPanel Orientation="Horizontal"
+                                Spacing="8"
+                                HorizontalAlignment="Center">
+                        <Button Content="1 Suit"
+                                Click="OnSpiderOneSuit"
+                                Padding="16,12"
+                                FontSize="14" />
+                        <Button Content="2 Suits"
+                                Click="OnSpiderTwoSuits"
+                                Padding="16,12"
+                                FontSize="14" />
+                        <Button Content="4 Suits"
+                                Click="OnSpiderFourSuits"
+                                Padding="16,12"
+                                FontSize="14" />
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+        </ContentControl>
+    </Grid>
+
+</UserControl>

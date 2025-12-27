@@ -1,0 +1,23 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="11.3.10" />
+    <PackageReference Include="Avalonia.Labs.Gif" Version="11.3.1" />
+    <PackageReference Include="Classic.CommonControls.Avalonia" Version="11.3.0.3" />
+    <PackageReference Include="Classic.Avalonia.Theme" Version="11.3.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../engine/DaCards/DaCards.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,57 @@
+<classic:ClassicWindow xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:classic="using:Classic.Avalonia.Theme"
+        xmlns:local="using:DaCardsAV"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
+        Width="800" Height="600"
+        MinWidth="400" MinHeight="300"
+        x:Class="DaCardsAV.MainWindow"
+        Title="DaCards">
+    <DockPanel Background="#008f00">
+        <Menu DockPanel.Dock="Top">
+            <MenuItem Header="_Game">
+                <MenuItem Header="_Solitaire">
+                    <MenuItem Header="Draw _1" Click="OnSolitaireDrawOne" />
+                    <MenuItem Header="Draw _3" Click="OnSolitaireDrawThree" />
+                </MenuItem>
+                <MenuItem Header="_FreeCell" Click="OnFreeCell" />
+                <MenuItem Header="S_pider Solitaire">
+                    <MenuItem Header="_1 Suit (Easy)" Click="OnSpiderOneSuit" />
+                    <MenuItem Header="_2 Suits (Medium)" Click="OnSpiderTwoSuits" />
+                    <MenuItem Header="_4 Suits (Hard)" Click="OnSpiderFourSuits" />
+                </MenuItem>
+                <Separator />
+                <MenuItem Header="_New Game" x:Name="NewGameMenuItem" Click="OnNewGame" InputGesture="Ctrl+N" />
+                <Separator />
+                <MenuItem Header="_Undo" x:Name="UndoMenuItem" Click="OnUndo" InputGesture="Ctrl+Z" />
+                <MenuItem Header="_Redo" x:Name="RedoMenuItem" Click="OnRedo" InputGesture="Ctrl+Y" />
+                <Separator />
+                <MenuItem Header="E_xit" Click="OnExit" />
+            </MenuItem>
+            <MenuItem Header="_Options">
+                <MenuItem Header="Card _Backs">
+                    <MenuItem Header="Deck _1" Click="OnCardBack1" />
+                    <MenuItem Header="Deck _2" Click="OnCardBack2" />
+                    <MenuItem Header="Deck _3" Click="OnCardBack3" />
+                    <MenuItem Header="Deck _4" Click="OnCardBack4" />
+                    <MenuItem Header="Deck _5" Click="OnCardBack5" />
+                    <MenuItem Header="Deck _6" Click="OnCardBack6" />
+                    <MenuItem Header="Deck _7" Click="OnCardBack7" />
+                    <MenuItem Header="Deck _8" Click="OnCardBack8" />
+                    <MenuItem Header="Deck _9" Click="OnCardBack9" />
+                    <MenuItem Header="Deck 1_0" Click="OnCardBack10" />
+                    <MenuItem Header="Deck 11" Click="OnCardBack11" />
+                    <MenuItem Header="Deck 12" Click="OnCardBack12" />
+                </MenuItem>
+            </MenuItem>
+            <MenuItem Header="_Debug">
+                <MenuItem Header="Play _Win Animation" Click="OnPlayWinAnimation" />
+            </MenuItem>
+        </Menu>
+        <ContentControl x:Name="GameContainer">
+            <local:StartScreen x:Name="StartScreenView" />
+        </ContentControl>
+    </DockPanel>
+</classic:ClassicWindow>

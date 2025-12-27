@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="../engine/DaCards/DaCards.csproj" />
+  <Project Path="DaCardsAV.Browser/DaCardsAV.Browser.csproj" />
+  <Project Path="DaCardsAV.Desktop/DaCardsAV.Desktop.csproj" />
+  <Project Path="DaCardsAV.iOS/DaCardsAV.iOS.csproj" />
+  <Project Path="DaCardsAV/DaCardsAV.csproj" />
+</Solution>

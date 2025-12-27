@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="DaCards.Tests/DaCards.Tests.csproj" />
+  <Project Path="DaCards/DaCards.csproj" />
+</Solution>

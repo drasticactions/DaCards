@@ -1,0 +1,17 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:gif="using:Avalonia.Labs.Gif"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
+             x:Class="DaCardsAV.StartScreen"
+             Background="#008f00">
+
+    <Viewbox Stretch="Uniform" StretchDirection="Both">
+        <gif:GifImage Width="818" Height="600" Source="avares://DaCardsAV/Assets/misc/animation_startup.gif"
+                      HorizontalAlignment="Center"
+                      VerticalAlignment="Center"
+                      Stretch="None" />
+    </Viewbox>
+
+</UserControl>
