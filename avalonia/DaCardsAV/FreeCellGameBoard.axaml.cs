@@ -286,6 +286,10 @@ public partial class FreeCellGameBoard : UserControl
         }
     }
 
+    // Suit symbols and colors for foundation display
+    private static readonly string[] FoundationSuitSymbols = ["♦", "♣", "♥", "♠"];
+    private static readonly bool[] FoundationSuitIsRed = [true, false, true, false];
+
     private void RenderFoundations()
     {
         for (int i = 0; i < FreeCellGame.FoundationCount; i++)
@@ -314,6 +318,34 @@ public partial class FreeCellGameBoard : UserControl
                 var topCard = foundation.TopCard!;
                 var cardImage = CreateImage(GetCardImage(topCard), x, TopRowY);
                 GameCanvas.Children.Add(cardImage);
+            }
+            else
+            {
+                // Draw faded suit symbol in empty foundation
+                var suitColor = FoundationSuitIsRed[i]
+                    ? Color.FromArgb(100, 180, 0, 0)    // Faded red
+                    : Color.FromArgb(100, 0, 80, 0);   // Faded dark green (for black suits)
+
+                var suitText = new TextBlock
+                {
+                    Text = FoundationSuitSymbols[i],
+                    FontSize = 36 * Scale,
+                    FontWeight = FontWeight.Bold,
+                    Foreground = new SolidColorBrush(suitColor),
+                    HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
+                    VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center
+                };
+
+                // Center the suit symbol in the foundation
+                var suitContainer = new Border
+                {
+                    Width = CardWidth,
+                    Height = CardHeight,
+                    Child = suitText
+                };
+                Canvas.SetLeft(suitContainer, x);
+                Canvas.SetTop(suitContainer, TopRowY);
+                GameCanvas.Children.Add(suitContainer);
             }
         }
     }
@@ -840,6 +872,22 @@ public partial class FreeCellGameBoard : UserControl
 
     private int FindAcceptingFoundation(Card card)
     {
+        // Prefer the foundation that matches the displayed suit symbol
+        // Order: Diamonds (0), Clubs (1), Hearts (2), Spades (3)
+        var preferredIndex = card.Suit switch
+        {
+            Suit.Diamonds => 0,
+            Suit.Clubs => 1,
+            Suit.Hearts => 2,
+            Suit.Spades => 3,
+            _ => -1
+        };
+
+        // Try preferred foundation first
+        if (preferredIndex >= 0 && _game.Foundations[preferredIndex].CanAcceptCard(card))
+            return preferredIndex;
+
+        // Fall back to any accepting foundation
         for (int f = 0; f < FreeCellGame.FoundationCount; f++)
         {
             if (_game.Foundations[f].CanAcceptCard(card))
