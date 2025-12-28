@@ -904,7 +904,7 @@ public partial class FreeCellGameBoard : UserControl
             return;
         }
 
-        const double speed = 20.0; // pixels per frame
+        const double speed = 60.0; // pixels per frame
 
         var dx = _currentAutoMove.EndX - _currentAutoMove.CurrentX;
         var dy = _currentAutoMove.EndY - _currentAutoMove.CurrentY;
