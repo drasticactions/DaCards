@@ -68,6 +68,10 @@ public partial class SpiderSolitareGameBoard : UserControl
     private int _launchDelay;
     private readonly Random _random = new();
 
+    // Auto-complete animation state
+    private bool _isAnimatingAutoMove;
+    private AutoMoveAnimation? _currentAutoMove;
+
     private class BouncingCard(Bitmap image, double x, double y, double vx, double vy)
     {
         public double X { get; set; } = x;
@@ -77,18 +81,35 @@ public partial class SpiderSolitareGameBoard : UserControl
         public Bitmap Image { get; } = image;
     }
 
+    private class AutoMoveAnimation
+    {
+        public required List<Bitmap> Images { get; init; }
+        public required double StartX { get; init; }
+        public required double StartY { get; init; }
+        public required double EndX { get; init; }
+        public required double EndY { get; init; }
+        public double CurrentX { get; set; }
+        public double CurrentY { get; set; }
+        public required Action OnComplete { get; init; }
+        public required int CardCount { get; init; }
+    }
+
     public SpiderSolitareGameBoard()
     {
         InitializeComponent();
         LoadCardImages();
         _game.NewGame(_currentDifficulty);
 
-        Loaded += (_, _) => RenderGame();
+        Loaded += (_, _) =>
+        {
+            RenderGame();
+            TryAutoCompleteSequences();
+        };
 
         // Re-render when canvas size changes
         GameCanvas.PropertyChanged += (_, e) =>
         {
-            if (e.Property == BoundsProperty && !_isDragging && !_isAnimatingWin)
+            if (e.Property == BoundsProperty && !_isDragging && !_isAnimatingWin && !_isAnimatingAutoMove)
             {
                 RenderGame();
             }
@@ -99,8 +120,8 @@ public partial class SpiderSolitareGameBoard : UserControl
         GameCanvas.Background = Brushes.Transparent;
     }
 
-    public bool CanUndo => _undoStack.Count > 0 && !_isAnimatingWin;
-    public bool CanRedo => _redoStack.Count > 0 && !_isAnimatingWin;
+    public bool CanUndo => _undoStack.Count > 0 && !_isAnimatingWin && !_isAnimatingAutoMove;
+    public bool CanRedo => _redoStack.Count > 0 && !_isAnimatingWin && !_isAnimatingAutoMove;
 
     private void SaveState()
     {
@@ -331,7 +352,7 @@ public partial class SpiderSolitareGameBoard : UserControl
 
     private void OnStockClicked(object? sender, PointerPressedEventArgs e)
     {
-        if (_isDragging || _isAnimatingWin) return;
+        if (_isDragging || _isAnimatingWin || _isAnimatingAutoMove) return;
 
         bool allTableausHaveCards = _game.Tableaus.All(t => !t.IsEmpty);
         if (!allTableausHaveCards)
@@ -349,6 +370,7 @@ public partial class SpiderSolitareGameBoard : UserControl
             CheckForNewCompletedSequences(previousCompleted);
             RenderGame();
             CheckForWin();
+            TryAutoCompleteSequences();
         }
         else
         {
@@ -362,7 +384,7 @@ public partial class SpiderSolitareGameBoard : UserControl
         if (sender is not Image image || image.Tag is not (string, int tableauIndex, int cardIndex, Card))
             return;
 
-        if (_isAnimatingWin) return;
+        if (_isAnimatingWin || _isAnimatingAutoMove) return;
 
         var tableau = _game.Tableaus[tableauIndex];
 
@@ -438,6 +460,7 @@ public partial class SpiderSolitareGameBoard : UserControl
 
         RenderGame();
         CheckForWin();
+        TryAutoCompleteSequences();
     }
 
     private int? FindDropTarget(Point pos)
@@ -612,6 +635,213 @@ public partial class SpiderSolitareGameBoard : UserControl
         _animationTimer = null;
         _isAnimatingWin = false;
     }
+
+
+    #region Auto-Complete Sequences
+
+    private DispatcherTimer? _autoMoveTimer;
+
+    private void TryAutoCompleteSequences()
+    {
+        if (!GameSettings.AutoMoveEnabled) return;
+        if (_isAnimatingAutoMove || _isAnimatingWin || _isDragging) return;
+
+        var move = FindSequenceCompletingMove();
+        if (move == null) return;
+
+        // Get the cards being moved
+        var sourceTableau = _game.Tableaus[move.Value.sourceIndex];
+        var cardsToMove = sourceTableau.Cards.Skip(move.Value.cardIndex).ToList();
+        
+        // Calculate start position
+        double startX = BoardMargin + move.Value.sourceIndex * CardSpacingX;
+        double startY = TableauY;
+        for (int i = 0; i < move.Value.cardIndex; i++)
+        {
+            startY += sourceTableau.Cards[i].IsFaceUp ? FaceUpCardOverlap : TableauCardOverlap;
+        }
+
+        // Calculate end position
+        var destTableau = _game.Tableaus[move.Value.destIndex];
+        double endX = BoardMargin + move.Value.destIndex * CardSpacingX;
+        double endY = TableauY;
+        foreach (var card in destTableau.Cards)
+        {
+            endY += card.IsFaceUp ? FaceUpCardOverlap : TableauCardOverlap;
+        }
+
+        // Create bitmaps for all cards being moved
+        var images = new List<Bitmap>();
+        foreach (var card in cardsToMove)
+        {
+            var bitmap = GetCardImage(card);
+            if (bitmap != null)
+            {
+                images.Add(bitmap);
+            }
+        }
+
+        if (images.Count == 0) return;
+
+        _isAnimatingAutoMove = true;
+        _currentAutoMove = new AutoMoveAnimation
+        {
+            Images = images,
+            StartX = startX,
+            StartY = startY,
+            EndX = endX,
+            EndY = endY,
+            CurrentX = startX,
+            CurrentY = startY,
+            CardCount = cardsToMove.Count,
+            OnComplete = () =>
+            {
+                // Execute the move
+                SaveState();
+                var previousCompleted = _game.CompletedSequences;
+                if (_game.MoveCards(move.Value.sourceIndex, move.Value.destIndex, move.Value.cardCount))
+                {
+                    _moves++;
+                    _score--;
+                    CheckForNewCompletedSequences(previousCompleted);
+                }
+                StopAutoMoveAnimation();
+                RenderGame();
+                CheckForWin();
+                
+                // Check for more sequence-completing moves
+                Dispatcher.UIThread.Post(() => TryAutoCompleteSequences(), DispatcherPriority.Background);
+            }
+        };
+
+        _autoMoveTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
+        _autoMoveTimer.Tick += OnAutoMoveTick;
+        _autoMoveTimer.Start();
+
+        RenderAutoMoveFrame();
+    }
+
+    private (int sourceIndex, int destIndex, int cardIndex, int cardCount)? FindSequenceCompletingMove()
+    {
+        // For each potential move, check if it would complete a sequence
+        for (int sourceIdx = 0; sourceIdx < 10; sourceIdx++)
+        {
+            var sourceTableau = _game.Tableaus[sourceIdx];
+            var firstFaceUp = sourceTableau.GetFirstFaceUpIndex();
+
+            if (firstFaceUp < 0) continue;
+
+            // Find all valid pickup positions
+            for (int cardIdx = firstFaceUp; cardIdx < sourceTableau.Count; cardIdx++)
+            {
+                if (!sourceTableau.CanPickupFrom(cardIdx)) continue;
+
+                var card = sourceTableau.Cards[cardIdx];
+                int cardCount = sourceTableau.Count - cardIdx;
+
+                for (int destIdx = 0; destIdx < 10; destIdx++)
+                {
+                    if (sourceIdx == destIdx) continue;
+
+                    var destTableau = _game.Tableaus[destIdx];
+                    if (!destTableau.CanAcceptCard(card)) continue;
+
+                    // Simulate the move and check for complete sequence
+                    if (WouldCompleteSequence(sourceTableau, destTableau, cardIdx))
+                    {
+                        return (sourceIdx, destIdx, cardIdx, cardCount);
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private bool WouldCompleteSequence(SpiderTableauPile source, SpiderTableauPile dest, int sourceCardIndex)
+    {
+        // Get the cards that would be moved
+        var movingCards = source.Cards.Skip(sourceCardIndex).ToList();
+        
+        // Simulate the destination after the move
+        var combinedCards = new List<Card>(dest.Cards);
+        combinedCards.AddRange(movingCards);
+
+        // Check if combined cards would have a complete sequence (last 13 cards)
+        if (combinedCards.Count < 13) return false;
+
+        int startIndex = combinedCards.Count - 13;
+        var suit = combinedCards[startIndex].Suit;
+
+        if (combinedCards[startIndex].Rank != Rank.King)
+            return false;
+
+        for (int i = 0; i < 13; i++)
+        {
+            var card = combinedCards[startIndex + i];
+            if (!card.IsFaceUp) return false;
+            if (card.Suit != suit) return false;
+            if ((int)card.Rank != 13 - i) return false;
+        }
+
+        return true;
+    }
+
+    private void OnAutoMoveTick(object? sender, EventArgs e)
+    {
+        if (_currentAutoMove == null)
+        {
+            StopAutoMoveAnimation();
+            return;
+        }
+
+        const double speed = 60.0; // pixels per frame
+
+        double dx = _currentAutoMove.EndX - _currentAutoMove.CurrentX;
+        double dy = _currentAutoMove.EndY - _currentAutoMove.CurrentY;
+        double distance = Math.Sqrt(dx * dx + dy * dy);
+
+        if (distance < speed)
+        {
+            // Animation complete
+            _currentAutoMove.OnComplete();
+            return;
+        }
+
+        // Move towards target
+        _currentAutoMove.CurrentX += (dx / distance) * speed;
+        _currentAutoMove.CurrentY += (dy / distance) * speed;
+
+        RenderAutoMoveFrame();
+    }
+
+    private void RenderAutoMoveFrame()
+    {
+        if (_currentAutoMove == null) return;
+
+        // First render the base game state
+        RenderGame();
+
+        // Then overlay the animated cards
+        double y = _currentAutoMove.CurrentY;
+        foreach (var bitmap in _currentAutoMove.Images)
+        {
+            var animatedCard = CreateImage(bitmap, _currentAutoMove.CurrentX, y);
+            animatedCard.ZIndex = 1000;
+            GameCanvas.Children.Add(animatedCard);
+            y += FaceUpCardOverlap;
+        }
+    }
+
+    private void StopAutoMoveAnimation()
+    {
+        _autoMoveTimer?.Stop();
+        _autoMoveTimer = null;
+        _currentAutoMove = null;
+        _isAnimatingAutoMove = false;
+    }
+
+    #endregion
 
     public void NewGame(SpiderDifficulty difficulty = SpiderDifficulty.OneSuit, int? seed = null)
     {

@@ -735,6 +735,9 @@ public partial class FreeCellGameBoard : UserControl
 
     private void TryAutoMoveToFoundations()
     {
+        // Skip if auto-move is disabled in settings
+        if (!GameSettings.AutoMoveEnabled) return;
+        
         // Skip if already animating
         if (_isAnimatingAutoMove || _isAnimatingWin || _isDragging) return;
 

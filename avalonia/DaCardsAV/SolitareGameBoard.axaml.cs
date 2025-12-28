@@ -57,6 +57,10 @@ public partial class SolitareGameBoard : UserControl
     private int _launchDelay;
     private readonly Random _random = new();
 
+    // Auto-move animation state
+    private bool _isAnimatingAutoMove;
+    private AutoMoveAnimation? _currentAutoMove;
+
     private enum DragSource { None, Waste, Tableau }
 
     // Class to track bouncing card physics
@@ -78,18 +82,34 @@ public partial class SolitareGameBoard : UserControl
         }
     }
 
+    private class AutoMoveAnimation
+    {
+        public required Bitmap Image { get; init; }
+        public required double StartX { get; init; }
+        public required double StartY { get; init; }
+        public required double EndX { get; init; }
+        public required double EndY { get; init; }
+        public double CurrentX { get; set; }
+        public double CurrentY { get; set; }
+        public required Action OnComplete { get; init; }
+    }
+
     public SolitareGameBoard()
     {
         InitializeComponent();
         LoadCardImages();
         _game.NewGame();
 
-        Loaded += (_, _) => RenderGame();
+        Loaded += (_, _) =>
+        {
+            RenderGame();
+            TryAutoMoveToFoundations();
+        };
 
         // Re-render when canvas size changes
         GameCanvas.PropertyChanged += (_, e) =>
         {
-            if (e.Property == BoundsProperty && !_isDragging && !_isAnimatingWin)
+            if (e.Property == BoundsProperty && !_isDragging && !_isAnimatingWin && !_isAnimatingAutoMove)
             {
                 RenderGame();
             }
@@ -101,8 +121,8 @@ public partial class SolitareGameBoard : UserControl
         GameCanvas.Background = Avalonia.Media.Brushes.Transparent; // Ensure hit testing works
     }
 
-    public bool CanUndo => _undoStack.Count > 0 && !_isAnimatingWin;
-    public bool CanRedo => _redoStack.Count > 0 && !_isAnimatingWin;
+    public bool CanUndo => _undoStack.Count > 0 && !_isAnimatingWin && !_isAnimatingAutoMove;
+    public bool CanRedo => _redoStack.Count > 0 && !_isAnimatingWin && !_isAnimatingAutoMove;
 
     private void SaveState()
     {
@@ -329,7 +349,7 @@ public partial class SolitareGameBoard : UserControl
 
     private void OnStockClicked(object? sender, PointerPressedEventArgs e)
     {
-        if (_isDragging || _isAnimatingWin) return;
+        if (_isDragging || _isAnimatingWin || _isAnimatingAutoMove) return;
 
         SaveState();
 
@@ -347,7 +367,7 @@ public partial class SolitareGameBoard : UserControl
 
     private void OnWasteCardPressed(object? sender, PointerPressedEventArgs e)
     {
-        if (sender is not Image image || _isAnimatingWin) return;
+        if (sender is not Image image || _isAnimatingWin || _isAnimatingAutoMove) return;
 
         // Double-click to auto-move to foundation
         if (e.ClickCount == 2)
@@ -356,6 +376,7 @@ public partial class SolitareGameBoard : UserControl
             _game.AutoMoveWasteToFoundation();
             RenderGame();
             CheckForWin();
+            TryAutoMoveToFoundations();
             return;
         }
 
@@ -385,7 +406,7 @@ public partial class SolitareGameBoard : UserControl
         if (sender is not Image image || image.Tag is not (string _, int tableauIndex, int cardIndex, Card _))
             return;
 
-        if (_isAnimatingWin) return;
+        if (_isAnimatingWin || _isAnimatingAutoMove) return;
 
         var tableau = _game.Tableaus[tableauIndex];
 
@@ -398,6 +419,7 @@ public partial class SolitareGameBoard : UserControl
                 _game.AutoMoveToFoundation(tableauIndex);
                 RenderGame();
                 CheckForWin();
+                TryAutoMoveToFoundations();
                 return;
             }
         }
@@ -481,6 +503,7 @@ public partial class SolitareGameBoard : UserControl
 
         RenderGame();
         CheckForWin();
+        TryAutoMoveToFoundations();
     }
 
     private (string Type, int Index)? FindDropTarget(Point pos)
@@ -567,6 +590,226 @@ public partial class SolitareGameBoard : UserControl
             StartWinAnimation();
         }
     }
+
+    #region Auto-Move to Foundations
+
+    private void TryAutoMoveToFoundations()
+    {
+        // Check if auto-move is enabled
+        if (!GameSettings.AutoMoveEnabled) return;
+
+        // Skip if already animating
+        if (_isAnimatingAutoMove || _isAnimatingWin || _isDragging) return;
+
+        // Find first safe card to auto-move
+        var autoMove = FindNextSafeAutoMove();
+        if (autoMove == null) return;
+
+        // Start animation
+        _isAnimatingAutoMove = true;
+        _currentAutoMove = autoMove;
+        _currentAutoMove.CurrentX = _currentAutoMove.StartX;
+        _currentAutoMove.CurrentY = _currentAutoMove.StartY;
+
+        _animationTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(16)
+        };
+        _animationTimer.Tick += OnAutoMoveTick;
+        _animationTimer.Start();
+    }
+
+    private AutoMoveAnimation? FindNextSafeAutoMove()
+    {
+        // Check waste pile first
+        if (!_game.Waste.IsEmpty)
+        {
+            var card = _game.Waste.TopCard!;
+            if (IsSafeToAutoMove(card))
+            {
+                var foundationIndex = FindAcceptingFoundation(card);
+                if (foundationIndex >= 0)
+                {
+                    var startX = BoardMargin + CardSpacingX;
+                    var endX = BoardMargin + (3 + foundationIndex) * CardSpacingX;
+
+                    return new AutoMoveAnimation
+                    {
+                        Image = GetCardImage(card)!,
+                        StartX = startX,
+                        StartY = TopRowY,
+                        EndX = endX,
+                        EndY = TopRowY,
+                        OnComplete = () =>
+                        {
+                            SaveState();
+                            _game.MoveWasteToFoundation(foundationIndex);
+                        }
+                    };
+                }
+            }
+        }
+
+        // Check tableau top cards
+        for (int t = 0; t < 7; t++)
+        {
+            var tableau = _game.Tableaus[t];
+            if (tableau.IsEmpty) continue;
+
+            var card = tableau.TopCard!;
+            if (IsSafeToAutoMove(card))
+            {
+                var foundationIndex = FindAcceptingFoundation(card);
+                if (foundationIndex >= 0)
+                {
+                    var startX = BoardMargin + t * CardSpacingX;
+                    var startY = TableauY + (tableau.Count - 1) * FaceUpCardOverlap;
+                    var endX = BoardMargin + (3 + foundationIndex) * CardSpacingX;
+                    var tableauIndex = t;
+
+                    return new AutoMoveAnimation
+                    {
+                        Image = GetCardImage(card)!,
+                        StartX = startX,
+                        StartY = startY,
+                        EndX = endX,
+                        EndY = TopRowY,
+                        OnComplete = () =>
+                        {
+                            SaveState();
+                            _game.MoveTableauToFoundation(tableauIndex, foundationIndex);
+                        }
+                    };
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private bool IsSafeToAutoMove(Card card)
+    {
+        // First check if any foundation can accept this card
+        if (FindAcceptingFoundation(card) < 0) return false;
+
+        // Aces are always safe
+        if (card.Rank == Rank.Ace) return true;
+
+        // 2s are always safe (aces must already be in foundations)
+        if (card.Rank == Rank.Two) return true;
+
+        // For higher cards, check if both opposite-color cards of rank-1 are in foundations
+        var neededRank = (int)card.Rank - 1;
+        var oppositeColorSuits = card.IsRed
+            ? new[] { Suit.Clubs, Suit.Spades }
+            : new[] { Suit.Hearts, Suit.Diamonds };
+
+        foreach (var suit in oppositeColorSuits)
+        {
+            if (!FoundationHasRankOrHigher(suit, neededRank))
+                return false;
+        }
+
+        return true;
+    }
+
+    private bool FoundationHasRankOrHigher(Suit suit, int rank)
+    {
+        foreach (var foundation in _game.Foundations)
+        {
+            if (foundation.IsEmpty) continue;
+            if (foundation.Suit == suit && (int)foundation.TopCard!.Rank >= rank)
+                return true;
+        }
+        return false;
+    }
+
+    private int FindAcceptingFoundation(Card card)
+    {
+        for (int f = 0; f < 4; f++)
+        {
+            if (_game.Foundations[f].CanAcceptCard(card))
+                return f;
+        }
+        return -1;
+    }
+
+    private void OnAutoMoveTick(object? sender, EventArgs e)
+    {
+        if (_currentAutoMove == null)
+        {
+            StopAutoMoveAnimation();
+            return;
+        }
+
+        const double speed = 60.0; // pixels per frame
+
+        var dx = _currentAutoMove.EndX - _currentAutoMove.CurrentX;
+        var dy = _currentAutoMove.EndY - _currentAutoMove.CurrentY;
+        var distance = Math.Sqrt(dx * dx + dy * dy);
+
+        if (distance < speed)
+        {
+            // Arrived - execute the move
+            _currentAutoMove.OnComplete();
+            _currentAutoMove = null;
+
+            // Stop current animation
+            _animationTimer?.Stop();
+            _animationTimer = null;
+            _isAnimatingAutoMove = false;
+
+            // Render and check for more auto-moves or win
+            RenderGame();
+            CheckForWin();
+
+            // Try to find more safe moves (sequential animation)
+            if (!_isAnimatingWin)
+            {
+                TryAutoMoveToFoundations();
+            }
+        }
+        else
+        {
+            // Move toward destination
+            _currentAutoMove.CurrentX += (dx / distance) * speed;
+            _currentAutoMove.CurrentY += (dy / distance) * speed;
+
+            // Render game state with animated card overlay
+            RenderAutoMoveFrame();
+        }
+    }
+
+    private void RenderAutoMoveFrame()
+    {
+        // Render normal game state
+        RenderGame();
+
+        // Overlay the animating card on top
+        if (_currentAutoMove != null)
+        {
+            var animCard = new Image
+            {
+                Source = _currentAutoMove.Image,
+                Width = CardWidth,
+                Height = CardHeight,
+                ZIndex = 1000
+            };
+            Canvas.SetLeft(animCard, _currentAutoMove.CurrentX);
+            Canvas.SetTop(animCard, _currentAutoMove.CurrentY);
+            GameCanvas.Children.Add(animCard);
+        }
+    }
+
+    private void StopAutoMoveAnimation()
+    {
+        _animationTimer?.Stop();
+        _animationTimer = null;
+        _isAnimatingAutoMove = false;
+        _currentAutoMove = null;
+    }
+
+    #endregion
 
     private void StartWinAnimation()
     {
@@ -698,6 +941,7 @@ public partial class SolitareGameBoard : UserControl
     public void NewGame(int drawCount = 1, int? seed = null)
     {
         StopWinAnimation();
+        StopAutoMoveAnimation();
         _isDragging = false;
         _dragSource = DragSource.None;
         _draggedCards.Clear();
@@ -706,6 +950,7 @@ public partial class SolitareGameBoard : UserControl
         _game.DrawCount = drawCount;
         _game.NewGame(seed);
         RenderGame();
+        TryAutoMoveToFoundations();
     }
 
     public bool IsGameWon => _game.IsGameWon;

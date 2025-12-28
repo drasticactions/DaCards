@@ -31,6 +31,12 @@
                 <MenuItem Header="E_xit" Click="OnExit" />
             </MenuItem>
             <MenuItem Header="_Options">
+                <MenuItem Header="_Auto-Move to Foundations" x:Name="AutoMoveMenuItem" Click="OnAutoMoveToggle">
+                    <MenuItem.Icon>
+                        <CheckBox IsChecked="True" IsHitTestVisible="False"/>
+                    </MenuItem.Icon>
+                </MenuItem>
+                <Separator />
                 <MenuItem Header="Card _Backs">
                     <MenuItem Header="Deck _1" Click="OnCardBack1" />
                     <MenuItem Header="Deck _2" Click="OnCardBack2" />

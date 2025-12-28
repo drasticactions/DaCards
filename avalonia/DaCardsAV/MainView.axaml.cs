@@ -138,4 +138,9 @@ public partial class MainView : UserControl
                 break;
         }
     }
+
+    private void OnAutoMoveToggle(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        GameSettings.AutoMoveEnabled = AutoMoveCheckBox.IsChecked ?? true;
+    }
 }

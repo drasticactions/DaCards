@@ -195,4 +195,15 @@ public partial class MainWindow : ClassicWindow
     private void OnCardBack10(object? sender, RoutedEventArgs e) => SetCardBack(10);
     private void OnCardBack11(object? sender, RoutedEventArgs e) => SetCardBack(11);
     private void OnCardBack12(object? sender, RoutedEventArgs e) => SetCardBack(12);
+
+    private void OnAutoMoveToggle(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        GameSettings.AutoMoveEnabled = !GameSettings.AutoMoveEnabled;
+        
+        // Update the checkbox icon
+        if (AutoMoveMenuItem.Icon is CheckBox checkBox)
+        {
+            checkBox.IsChecked = GameSettings.AutoMoveEnabled;
+        }
+    }
 }

@@ -128,6 +128,19 @@
                                 Padding="16,12"
                                 FontSize="14" />
                     </StackPanel>
+
+                    <!-- Settings -->
+                    <Border Margin="0,20,0,0"
+                            Background="#00550055"
+                            CornerRadius="8"
+                            Padding="16,8">
+                        <CheckBox x:Name="AutoMoveCheckBox"
+                                  Content="Auto-Move to Foundations"
+                                  IsChecked="True"
+                                  Foreground="White"
+                                  FontSize="14"
+                                  Click="OnAutoMoveToggle" />
+                    </Border>
                 </StackPanel>
             </Grid>
         </ContentControl>
