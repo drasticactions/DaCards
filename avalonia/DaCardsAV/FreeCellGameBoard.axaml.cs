@@ -28,9 +28,9 @@ public partial class FreeCellGameBoard : UserControl
 
     // Top row layout - Windows 95 style
     private double TopRowY => 15 * Scale;
-    private double FreeCellStartX => BoardMargin;
     private double FreeCellSpacing => CardWidth + 8 * Scale;
-    private double FoundationStartX => CanvasWidth - BoardMargin - (4 * FreeCellSpacing) + 8 * Scale;
+    private double FoundationStartX => BoardMargin;
+    private double FreeCellStartX => CanvasWidth - BoardMargin - (4 * FreeCellSpacing) + 8 * Scale;
     private double KingIconSize => 40 * Scale;
     private double KingIconX => (CanvasWidth - KingIconSize) / 2;
     private double KingIconY => TopRowY + (CardHeight - KingIconSize) / 2;
@@ -664,8 +664,8 @@ public partial class FreeCellGameBoard : UserControl
 
     private void UpdateKingDirection(int foundationIndex)
     {
-        // Foundations 0-1 are on the left side, 2-3 are on the right side
-        // King looks toward the foundation that received the card
+        // King looks toward the half of the foundation area that received the card
+        // Foundations 0-1 are on the left half, 2-3 are on the right half
         _kingLookingRight = foundationIndex >= 2;
     }
 
