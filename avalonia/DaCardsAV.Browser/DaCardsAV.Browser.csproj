@@ -22,6 +22,10 @@
   </ItemGroup>
 
   <ItemGroup>
+		<AvaloniaResource Include="Assets\**" />
+	</ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\DaCardsAV\DaCardsAV.csproj" />
   </ItemGroup>
 </Project>
