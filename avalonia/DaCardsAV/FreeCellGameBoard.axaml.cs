@@ -675,6 +675,15 @@ public partial class FreeCellGameBoard : UserControl
     private bool ExecuteFreeCellDrop(DropTarget target)
     {
         int freeCellIndex = _dragSource!.Index;
+        var card = _game.FreeCells[freeCellIndex];
+
+        // For foundation drops, enforce suit-specific placement
+        if (target.Type == DropTargetType.Foundation && card != null)
+        {
+            int expectedFoundation = GetFoundationIndexForSuit(card.Suit);
+            if (target.Index != expectedFoundation)
+                return false;
+        }
 
         bool moved = target.Type switch
         {
@@ -696,6 +705,19 @@ public partial class FreeCellGameBoard : UserControl
     {
         int tableauIndex = _dragSource!.Index;
         int cardIndex = _dragSource.CardIndex;
+
+        // For foundation drops, enforce suit-specific placement
+        if (target.Type == DropTargetType.Foundation && _draggedCards.Count == 1)
+        {
+            var tableau = _game.Tableaus[tableauIndex];
+            var card = tableau.TopCard;
+            if (card != null)
+            {
+                int expectedFoundation = GetFoundationIndexForSuit(card.Suit);
+                if (target.Index != expectedFoundation)
+                    return false;
+            }
+        }
 
         bool moved = target.Type switch
         {
@@ -875,9 +897,9 @@ public partial class FreeCellGameBoard : UserControl
 
     private int FindAcceptingFoundation(Card card)
     {
-        // Prefer the foundation that matches the displayed suit symbol
+        // Each foundation is designated for a specific suit
         // Order: Diamonds (0), Clubs (1), Hearts (2), Spades (3)
-        var preferredIndex = card.Suit switch
+        var suitIndex = card.Suit switch
         {
             Suit.Diamonds => 0,
             Suit.Clubs => 1,
@@ -886,17 +908,25 @@ public partial class FreeCellGameBoard : UserControl
             _ => -1
         };
 
-        // Try preferred foundation first
-        if (preferredIndex >= 0 && _game.Foundations[preferredIndex].CanAcceptCard(card))
-            return preferredIndex;
+        // Only return the matching suit foundation if it can accept the card
+        if (suitIndex >= 0 && _game.Foundations[suitIndex].CanAcceptCard(card))
+            return suitIndex;
 
-        // Fall back to any accepting foundation
-        for (int f = 0; f < FreeCellGame.FoundationCount; f++)
-        {
-            if (_game.Foundations[f].CanAcceptCard(card))
-                return f;
-        }
         return -1;
+    }
+
+    private static int GetFoundationIndexForSuit(Suit suit)
+    {
+        // Each foundation is designated for a specific suit
+        // Order: Diamonds (0), Clubs (1), Hearts (2), Spades (3)
+        return suit switch
+        {
+            Suit.Diamonds => 0,
+            Suit.Clubs => 1,
+            Suit.Hearts => 2,
+            Suit.Spades => 3,
+            _ => -1
+        };
     }
 
     private void OnAutoMoveTick(object? sender, EventArgs e)
